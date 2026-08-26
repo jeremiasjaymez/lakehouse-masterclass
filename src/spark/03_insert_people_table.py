@@ -1,7 +1,7 @@
 from pyspark.sql import SparkSession
 
-# Step 2: Insert data into the Iceberg table and query it
-# Prerequisite: run 01_create_people_table.py (or create_people_table.py) first
+# LAB 2 — Insertar filas en la tabla Iceberg para generar un snapshot nuevo.
+# Prerrequisito: correr antes 02_create_people_table.py
 
 spark = (
     SparkSession.builder.appName("InsertIcebergTable")
@@ -26,17 +26,20 @@ spark = (
     .getOrCreate()
 )
 
-# Insert new rows into the existing table
+# El INSERT tiene que respetar el schema completo que salió del CSV
+# (id, name, bio, department, country). Si le pasás menos columnas, Spark corta con
+# INSERT_COLUMN_ARITY_MISMATCH: Iceberg no completa con NULL por su cuenta.
 spark.sql("""
     INSERT INTO iceberg.bronze_people VALUES
-        (5, 'Gaston'),
-        (6, 'Gonzalo')
+        (16, 'Gaston', 'Data engineer enfocado en streaming y Kafka', 'Engineering', 'Argentina'),
+        (17, 'Gonzalo', 'Analista de datos con foco en reporting financiero', 'Analytics', 'Chile')
 """)
 
-print("Rows inserted successfully.")
+print("Filas insertadas correctamente.")
 
-# Query all data
+# Este INSERT crea un snapshot NUEVO: la tabla ahora tiene dos versiones.
+# Esa es la materia prima del time travel del PASO 8.
 df = spark.sql("SELECT * FROM iceberg.bronze_people")
 
-print("Current table contents:")
+print("Contenido actual de la tabla:")
 df.show()

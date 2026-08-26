@@ -106,13 +106,33 @@ mkdir -p data/silver
 mkdir -p data/gold
 ```
 
-### PASO 6 - Crear archivo de prueba
+### PASO 6 - Verificar el dataset del curso
+
+El repo ya trae `data/bronze/people.csv`: **15 filas** con las columnas
+`id,name,bio,department,country`. No lo generes vos — verificá que esté:
 
 ```bash
-echo "id,name
-1,Jeremias
-2,Franco" > data/bronze/people.csv
+head -3 data/bronze/people.csv
+wc -l data/bronze/people.csv    # 16 (15 filas + header)
 ```
+
+```csv
+id,name,bio,department,country
+1,Jeremias,"Data engineer apasionado por lakehouse y arquitecturas open-source",Engineering,Argentina
+2,Franco,"Diseñador UX especializado en productos de datos",Product,Argentina
+```
+
+!!! danger "No lo sobrescribas"
+    Es tentador generar un CSV de prueba con un `echo >`, pero **este dataset lo usan
+    los labs 9, 10 y 11**: los embeddings se calculan sobre `bio`, y las queries de
+    ejemplo agrupan por `department` y `country`. Si lo pisás con dos columnas, esos
+    labs fallan con `KeyError: 'bio'` y no vas a saber por qué.
+
+    Si ya lo pisaste, recuperalo:
+
+    ```bash
+    git checkout -- data/bronze/people.csv
+    ```
 
 ### PASO 7 - Subir archivo a MinIO (opcional)
 
@@ -128,7 +148,10 @@ Crear el archivo `src/minio/test_minio.py`.
 python src/minio/test_minio.py
 ```
 
-## Validación
+## Checkpoint de validación
+
+!!! important
+    Completá esta validación antes de continuar con el siguiente bloque.
 
 - MinIO levanta sin errores
 - Acceso a http://localhost:9001
@@ -174,17 +197,18 @@ s3.create_bucket(Bucket="test-bucket")
     ```bash
     docker logs minio
     ```
-    Esperará hasta ver `API: http://0.0.0.0:9000`.
+    Esperá hasta ver `API: http://0.0.0.0:9000`.
 
     **`Access Denied` al subir** → verificar `aws_access_key_id="admin"` y
     `aws_secret_access_key="password"` en el script.
 
-    **Bucket no existe al subir** → creálo primero desde la UI o con
+    **Bucket no existe al subir** → crealo primero desde la UI o con
     `s3.create_bucket(Bucket="bronze")`.
 
 ## Resultado esperado
 
-- Al finalizar este lab, deberías tener:
+Al finalizar este lab, deberías tener:
+
 - MinIO ejecutándose localmente
 - Buckets bronze/silver/gold creados
 - Conexión Python <-> MinIO funcionando

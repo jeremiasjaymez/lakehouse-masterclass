@@ -141,7 +141,11 @@ SELECT * FROM iceberg_scan('s3://bronze/iceberg/warehouse/bronze_people');
 
 También se puede leer con `python src/duckdb/01_read_people_table.py`.
 
-> One limitation to be aware of: DuckDB's Iceberg extension currently has no write support, so INSERT INTO iceberg.bronze_people won't work - writes must go through Spark. DuckDB's role in this lakehouse is as a fast analytical read layer.
+!!! warning "DuckDB acá solo lee"
+    La extensión Iceberg de DuckDB todavía **no soporta escritura**: un
+    `INSERT INTO iceberg.bronze_people` no va a funcionar. Todas las escrituras pasan
+    por Spark. El rol de DuckDB en este Lakehouse es el de capa de lectura analítica
+    rápida — y para eso es excelente.
 
 ### PASO 7 - Ver snapshots (versionado)
 
@@ -155,7 +159,7 @@ Deberías ver 2 `snapshot_id`.
 
 ### PASO 8 - Time travel a snapshot anterior
 
-**Tomá el `snapshot_id` del primer snapshot y ejecutá**
+El script busca solo el snapshot más viejo y lee la tabla en ese punto:
 
 ```bash
 python src/duckdb/03_read_people_table_as_version.py
@@ -163,21 +167,25 @@ python src/duckdb/03_read_people_table_as_version.py
 
 Deberías ver los datos antes del update.
 
-## Validación
+## Checkpoint de validación
+
+!!! important
+    Completá esta validación antes de continuar con el siguiente bloque.
 
 - Podés hacer SELECT * sin errores.
-- Hay múltiples snapshots en `iceberg_internals.snapshots`.
+- `iceberg_snapshots()` devuelve más de un `snapshot_id`.
 - El time travel devuelve el estado anterior de los datos.
 
 ## ¡Momento Click! 🎯
 
 !!! success "Time travel en 3 pasos"
-    1. **Anotá** el `snapshot_id` del paso 7 (antes de insertar filas nuevas).
-    2. Ejecutá `python src/spark/03_insert_people_table.py` para agregar más datos.
-    3. Ejecutá `python src/duckdb/03_read_people_table_as_version.py` apuntando al snapshot original.
+    1. Mirá cuántas filas tiene la tabla hoy: `python src/duckdb/01_read_people_table.py` → **17**.
+    2. Ejecutá `python src/duckdb/02_read_snapshot_version.py` → hay **2 snapshots**.
+    3. Ejecutá `python src/duckdb/03_read_people_table_as_version.py`, que viaja solo
+       al más viejo → **15 filas**.
 
-    Las filas nuevas **no aparecen** en la consulta del snapshot viejo. Iceberg nunca
-    sobreescribe el Parquet anterior — solo agrega snapshots como commits inmutables.
+    Gaston y Gonzalo **no aparecen** en la consulta del snapshot viejo. Iceberg nunca
+    sobrescribe el Parquet anterior — solo agrega snapshots como commits inmutables.
     Si algo sale mal en producción, podés volver a cualquier punto del tiempo sin
     restaurar backups.
 
@@ -192,17 +200,19 @@ Deberías ver los datos antes del update.
     SET s3_url_style='path';
     SET s3_use_ssl=false;
     ```
-    Aseguráte de correr estas tres líneas antes del `iceberg_scan()`.
+    Asegurate de correr estas líneas antes del `iceberg_scan()`.
 
-    **`NoSuchObjectException` en time travel** → el `snapshot_id` debe estar entre los que
-    lista `iceberg_internals.snapshots`. Copiará uno entero, sin truncar.
+    **`NoSuchObjectException` en time travel** → el `snapshot_id` tiene que estar entre
+    los que lista `iceberg_snapshots()`. Copiá el número entero, sin truncar: son 19
+    dígitos y es fácil comerse uno.
 
     **Spark descarga jars la primera vez y tarda 2-3 min** → normal, son unos 300MB.
     Después quedan en caché local en `~/.ivy2/`.
 
 ## Resultado esperado
 
-- Al finalizar este lab, deberías tener:
+Al finalizar este lab, deberías tener:
+
 - Una tabla Iceberg creada sobre MinIO.
 - Datos insertados y modificados.
 - Múltiples snapshots registrados.

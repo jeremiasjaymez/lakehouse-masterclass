@@ -174,6 +174,91 @@ En la UI de Dagster:
 - SQL ejecutado en Spark
 - Dagster ejecuta IA dentro del pipeline
 
+## ¡Momento Click! 🎯
+
+!!! success "Un vector es una columna, y el LLM es un compañero que adivina"
+
+    Este lab tiene **dos** clicks, y conviene verlos separados.
+
+    **1. No hay vector database.**
+
+    ```bash
+    python src/spark/11_read_iceberg_people_embeddings.py
+    ```
+
+    Esos arrays de 768 floats están en una columna de una tabla Iceberg. La misma
+    tabla que tiene snapshots, time travel, evolución de schema y ramas de Nessie.
+    No instalaste Pinecone, ni Weaviate, ni Qdrant. **Un embedding es un
+    `array<float>`**, y tu Lakehouse ya sabía guardar arrays.
+
+    El día que necesites escala real vas a querer un índice ANN de verdad — pero
+    hasta ese día, la infraestructura que ya tenés alcanza. La mayoría de los
+    proyectos que arrancan con un vector DB dedicado nunca llegan a necesitarlo.
+
+    **2. El LLM no es determinístico. Corré esto tres veces seguidas:**
+
+    ```bash
+    python src/ai/sql_generator.py
+    python src/ai/sql_generator.py
+    python src/ai/sql_generator.py
+    ```
+
+    Misma pregunta, mismo modelo, misma temperatura por defecto... y **SQL distinto
+    cada vez**. A veces `LOWER(name)`, a veces `lower(name)`, a veces te mete un
+    `ORDER BY` que nadie pidió. De vez en cuando inventa una columna que no existe.
+
+    ---
+
+    Ahí está el click incómodo, y es el que más vale del lab: **text-to-SQL es un
+    motor de sugerencias, no un compilador.** Spark valida la sintaxis, pero nadie
+    valida la *intención*: un `WHERE` de más no rompe la query, te devuelve una
+    respuesta plausible y equivocada.
+
+    Por eso en producción esto nunca va suelto contra la base. Va con schema
+    restringido, allowlist de tablas, `EXPLAIN` previo, límite de filas y —
+    idealmente — un humano que aprueba. Lo que acabás de construir es la demo:
+    la parte difícil es todo lo que la rodea.
+
+## Troubleshooting frecuente
+
+!!! warning "Si algo no anda"
+    **`ConnectionError: [Errno 111] Connection refused` en localhost:11434** →
+    Ollama no está corriendo:
+
+    ```bash
+    ollama serve &     # o: sudo systemctl start ollama
+    curl http://localhost:11434/api/tags
+    ```
+
+    **`model 'llama3.1' not found`** → falta bajarlo. Son ~4.7 GB:
+
+    ```bash
+    ollama pull llama3.1
+    ollama pull nomic-embed-text
+    ```
+
+    **Los embeddings tardan muchísimo** → es normal en CPU. Son 15 filas, deberían
+    tardar unos segundos; si tarda minutos, verificá que no estés corriendo Spark y
+    Ollama al mismo tiempo peleando por RAM.
+
+    **`NoSuchNamespaceException: silver`** → con el catálogo REST los namespaces no
+    se crean solos: `spark.sql("CREATE NAMESPACE IF NOT EXISTS nessie.silver")`.
+
+    **El SQL generado falla con `TABLE_OR_VIEW_NOT_FOUND`** → el LLM inventó un
+    nombre. Es esperable (ver el Momento Click). Volvé a correrlo.
+
+    **`FileNotFoundError: data/silver/people_with_embeddings.json`** → corré
+    `src/ai/generate_embeddings.py` antes que `10_save_embeddings_iceberg.py`, y
+    hacelo **desde la raíz del repo**: los paths de los scripts son relativos al cwd.
+
+    **WSL2 se queda sin memoria con Spark + Ollama** → limitá la RAM de WSL2 en
+    `C:\Users\<vos>\.wslconfig`:
+
+    ```ini
+    [wsl2]
+    memory=8GB
+    ```
+
 ## Resultado esperado
 
 !!! note

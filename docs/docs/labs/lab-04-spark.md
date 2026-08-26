@@ -152,6 +152,7 @@ python src/nessie/02_merge_dev_to_staging.py
     Cuando el ETL corre en una rama, un bug no rompe `main`: rompe `dev`, lo ves en
     el log de commits y lo descartás borrando la rama. Es el mismo gesto mental que
     hacés con Git todos los días, aplicado a tablas de millones de filas.
+
 ## Checkpoint de validación
 
 !!! important
@@ -176,9 +177,20 @@ python src/nessie/02_merge_dev_to_staging.py
     python src/duckdb/05_attach_nessie_catalog.py
     ```
 
-    DuckDB lista `nessie.bronze.people`, `nessie.silver.people` y
-    `nessie.silver.people_embeddings` **por nombre**. No le dijiste dónde está
-    nada: se lo preguntó a Nessie, igual que Spark.
+    ```text
+    === Namespaces que ve DuckDB en Nessie ===
+       bronze
+       silver
+
+    === Tablas del catálogo (descubiertas por nombre) ===
+       nessie.bronze.people
+       nessie.silver.people
+       nessie.silver.people_partitioned
+    ```
+
+    DuckDB las lista **por nombre**. No le dijiste dónde está nada: se lo preguntó
+    a Nessie, igual que Spark. (Cuando hagas los labs 9 y 11 van a aparecer también
+    `people_embeddings` y `knowledge_chunks`, sin que toques este script.)
 
     Eso es un catálogo de verdad. En el Lab 2, DuckDB necesitaba la ruta completa
     `s3://bronze/iceberg/warehouse/bronze_people`; ahora hay **una sola fuente de
@@ -209,14 +221,17 @@ python src/nessie/02_merge_dev_to_staging.py
 
     **`NoSuchBucketException`** → el bucket `bronze` no existe en MinIO.
     `src/minio/test_minio.py` **no crea buckets**, solo sube el CSV a uno que ya
-    exista. Creálo desde la consola de MinIO (<http://localhost:9001>) como en el
+    exista. Crealo desde la consola de MinIO (<http://localhost:9001>) como en el
     Lab 1, o con Terraform (`terraform apply` en `infra/terraform`), o desde Python:
     ```python
     s3.create_bucket(Bucket="bronze")
     ```
 
-    **`NoSuchTableException` en bronze_people** → corré primero
-    `python src/spark/02_create_people_table.py`.
+    **`NoSuchTableException` en `nessie.bronze.people`** → esta es la tabla del
+    catálogo Nessie, no la del Lab 2. La carga el script del Lab 3:
+    ```bash
+    python src/spark/04_nessie_commit_dev.py
+    ```
 
 ## Resultado esperado
 

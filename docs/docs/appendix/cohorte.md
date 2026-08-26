@@ -188,14 +188,14 @@ Mandalo apenas confirmás la vacante, con **una semana de anticipación**.
     en 4 semanas tenés que mostrar tu pipeline funcionando delante de 25 colegas hace
     más por la tasa de finalización que cualquier precio de entrada.
 
-    Anunciálo en la Sesión 1, no en la 3.
+    Anuncialo en la Sesión 1, no en la 3.
 
 ---
 
 ## 4. Después de la cohorte
 
 - Subí las grabaciones: son el producto self-paced de la próxima edición.
-- Pedí **un testimonio de una línea** a cada quien entregó capstone, el mismo día
+- Pedí **un testimonio de una línea** a cada persona que entregó el capstone, el mismo día
   del Demo Day (después nadie contesta).
 - Pasá las dudas del canal a **GitHub Discussions**: quedan indexadas y le sirven
   a la cohorte siguiente.

@@ -42,7 +42,7 @@ Es compatible a nivel de API con Vault, así que **el cambio es una línea**:
 # docker-compose.vault.yml — versión OpenBao
 services:
   vault:
-    image: openbao/openbao:latest      # antes: hashicorp/vault:1.18.5
+    image: openbao/openbao:2.6.2       # antes: hashicorp/vault:1.18.5
     container_name: vault
     ports:
       - "8200:8200"
@@ -125,35 +125,57 @@ export VAULT_TOKEN=root
 
 ### PASO 4 - Validar que Vault está vivo
 
-Instalá Vault CLI si todavía no lo tenés:
+El contenedor ya trae la CLI adentro, así que **no hace falta instalar nada**:
 
 ```bash
-sudo snap install vault --channel=1.18/stable
+docker exec vault vault status
 ```
 
-```bash
-vault status
+```text
+Key             Value
+---             -----
+Seal Type       shamir
+Initialized     true
+Sealed          false
 ```
 
-**Deberías ver**
+!!! note "Por qué el compose setea `VAULT_ADDR` y `VAULT_TOKEN`"
+    El CLI de Vault, adentro del contenedor, asume `https://127.0.0.1:8200` y no
+    tiene token. Sin esas dos variables, `docker exec vault vault kv get ...` falla
+    con `http: server gave HTTP response to HTTPS client` o con `permission denied`.
+    Por eso el `docker-compose.vault.yml` del repo las declara — son credenciales de
+    demo del modo dev, no secretos reales.
 
-- Initialized: true
-- Sealed: false
+!!! tip "Si preferís la CLI local"
+    En WSL2 `snap` suele no andar (necesita systemd). Si querés el binario local,
+    bajalo de [releases.hashicorp.com](https://releases.hashicorp.com/vault/).
+    Con la CLI local sí necesitás exportar las variables del PASO 3, y los comandos
+    van sin el prefijo `docker exec vault`.
 
 ### PASO 5 - Habilitar el motor de secretos KV
 
-**Para dev no es necesario**
+**En modo dev NO corras esto**: Vault ya monta `secret/` (KV v2) solo al arrancar, y
+el comando falla con `path is already in use at secret/`.
 
 ```bash
-vault secrets enable -path=secret kv
+# Solo en una instalación real, no en el modo dev de este lab:
+vault secrets enable -path=secret kv-v2
 ```
+
+Verificá que el mount ya existe:
+
+```bash
+docker exec vault vault secrets list
+```
+
+Tenés que ver `secret/` con tipo `kv`.
 
 ### PASO 6 - Crear secretos del Lakehouse
 
-**Credenciales de MinIO**
+**Credenciales de MinIO** — el secreto que después consumen Spark, Dagster y Terraform:
 
 ```bash
-vault kv put secret/minio \
+docker exec vault vault kv put secret/minio \
     access_key=admin \
     secret_key=password
 ```
@@ -161,7 +183,7 @@ vault kv put secret/minio \
 **Credenciales de Nessie**
 
 ```bash
-vault kv put secret/nessie \
+docker exec vault vault kv put secret/nessie \
     user=admin \
     password=admin
 ```
@@ -169,14 +191,26 @@ vault kv put secret/nessie \
 **Configuración de Spark (opcional)**
 
 ```bash
-vault kv put secret/spark \
-    master=local[*]
+docker exec vault vault kv put secret/spark \
+    master='local[*]'
 ```
+
+!!! tip "Si instalaste la CLI local"
+    Sacá el prefijo `docker exec vault` de todos estos comandos y exportá primero
+    las variables del PASO 3. El resultado es idéntico.
 
 ### PASO 7 - Leer un secreto desde CLI
 
 ```bash
-vault kv get secret/minio
+docker exec vault vault kv get secret/minio
+```
+
+```text
+======= Data =======
+Key           Value
+---           -----
+access_key    admin
+secret_key    password
 ```
 
 ### PASO 8 - Leer secretos desde Python
@@ -245,13 +279,13 @@ Prepará estos archivos:
 !!! success "Secret rotation en vivo sin tocar el código"
     1. **Rompé las credenciales**:
     ```bash
-    docker exec -it vault vault kv put secret/minio access_key=wrong secret_key=wrong
+    docker exec vault vault kv put secret/minio access_key=wrong secret_key=wrong
     ```
-    2. En la UI de Dagster, re-materializació el asset `minio_connectivity_check` → **rojo**.
+    2. En la UI de Dagster, re-materializá el asset `minio_connectivity_check` → **rojo**.
        El log muestra `InvalidAccessKeyId` — MinIO rechazó las creds inválidas.
     3. **Restaurá las credenciales**:
     ```bash
-    docker exec -it vault vault kv put secret/minio access_key=admin secret_key=password
+    docker exec vault vault kv put secret/minio access_key=admin secret_key=password
     ```
     4. Re-materializá de nuevo → **verde**.
 
@@ -273,9 +307,18 @@ Prepará estos archivos:
     export VAULT_TOKEN=root
     ```
 
-    **Vault sella al reiniciar el contenedor** → en modo dev se pierde el estado.
-    Hay que volver a ejecutar los `vault kv put` del PASO 6 después de cada
-    `docker compose up`.
+    **Los secretos desaparecen al recrear el contenedor** → en modo dev Vault
+    guarda todo en memoria. Después de un `docker compose down` (o de un
+    `--force-recreate`) hay que re-sembrarlos:
+    ```bash
+    docker exec vault vault kv put secret/minio access_key=admin secret_key=password
+    docker exec vault vault kv put secret/nessie user=admin password=admin
+    ```
+    O directamente `terraform apply` (Lab 7), que los declara como código.
+
+    **`http: server gave HTTP response to HTTPS client`** → te falta `VAULT_ADDR`.
+    Si usás la CLI local, exportá las variables del PASO 3; si usás
+    `docker exec`, levantá el contenedor con el compose del repo, que ya las trae.
 
     **Asset `minio_connectivity_check` falla con `ResourceNotFound`** →
     verificar que `VaultResource` está registrado en `definitions.py` bajo la
@@ -292,4 +335,5 @@ Al finalizar este lab, deberías tener:
 - Secretos del Lakehouse centralizados
 - Integración con Python, Spark y Dagster
 - Base para Terraform y CI/CD
-- Este lab completa la capa de seguridad del Lakehouse.
+
+Este lab completa la capa de seguridad del Lakehouse.

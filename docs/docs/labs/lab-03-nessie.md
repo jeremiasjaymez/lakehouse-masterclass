@@ -159,8 +159,12 @@ curl http://localhost:19120/api/v1/trees/tree/dev/log
 
 ### PASO 8 - Merge dev -> staging
 
-Creamos script:
-`src/nessie/02_merge_dev_to_staging.py`
+```bash
+python src/nessie/02_merge_dev_to_staging.py
+```
+
+El script trae el hash de `dev` y lo mergea sobre `staging` por la API REST — el
+equivalente exacto de un `git merge`, pero de tablas.
 
 ### PASO 9 - Validar que staging tiene los cambios
 
@@ -168,7 +172,10 @@ Creamos script:
 curl http://localhost:19120/api/v1/trees/tree/staging/log
 ```
 
-## Validación
+## Checkpoint de validación
+
+!!! important
+    Completá esta validación antes de continuar con el siguiente bloque.
 
 - Nessie levanta correctamente
 - Ramas creadas: main, dev, staging, prod
@@ -191,12 +198,23 @@ requests.delete(f"{BASE}/trees/branch/staging", params={"expectedHash": h})
     Ejecutá `python src/spark/04_nessie_commit_dev.py` y mirá el final de la salida:
 
     ```text
-    === 4. MAIN (sin cambios) ===        === 4. DEV (con el UPDATE) ===
-    +---+--------+                       +---+------------+
-    | id|    name|                       | id|        name|
-    +---+--------+                       +---+------------+
-    |  1|Jeremias|                       |  1|Jeremias DEV|
-    |  2|  Franco|                       |  2|      Franco|
+    === 4. MAIN (sin cambios) ===
+    +---+--------+
+    | id|    name|
+    +---+--------+
+    |  1|Jeremias|
+    |  2|  Franco|
+    |  3|  Matias|
+    +---+--------+
+
+    === 4. DEV (con el UPDATE) ===
+    +---+------------+
+    | id|        name|
+    +---+------------+
+    |  1|Jeremias DEV|
+    |  2|      Franco|
+    |  3|      Matias|
+    +---+------------+
     ```
 
     **La misma tabla, `nessie.bronze.people`, con dos contenidos distintos al mismo
@@ -252,11 +270,11 @@ spark.sql("SELECT * FROM nessie_dev.bronze.people")
     ```bash
     docker logs nessie
     ```
-    Esperará hasta ver `Listening on: http://0.0.0.0:19120`.
+    Esperá hasta ver `Listening on: http://0.0.0.0:19120`.
 
     **`409 Conflict` al crear rama** → la rama ya existe. El script
     `04_nessie_commit_dev.py` hace `DROP BRANCH IF EXISTS` antes de crear,
-    pero si creáste la rama a mano, borrála primero:
+    pero si creaste la rama a mano, borrala primero:
     ```bash
     HASH=$(curl -s http://localhost:19120/api/v1/trees/tree/dev | python3 -c "import sys,json; print(json.load(sys.stdin)['hash'])")
     curl -X DELETE "http://localhost:19120/api/v1/trees/branch/dev?expectedHash=$HASH"
@@ -280,7 +298,8 @@ spark.sql("SELECT * FROM nessie_dev.bronze.people")
 
 ## Resultado esperado
 
-- Al finalizar este lab, deberías tener:
+Al finalizar este lab, deberías tener:
+
 - Un catálogo Nessie funcionando
 - Ramas dev/staging/prod
 - Integración Iceberg <-> Nessie

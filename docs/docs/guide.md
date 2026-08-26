@@ -92,18 +92,22 @@ Ideal para estudio individual a tu ritmo.
 ## Plantilla base de cada lab
 
 !!! note
-    Usá las notas como guía rápida, los warnings para limitaciones reales y los checkpoints de validación antes de avanzar al siguiente lab.
+    Usá las notas como guía rápida, los warnings para limitaciones reales y los
+    checkpoints de validación antes de avanzar al siguiente lab.
 
-### Objetivo
+Todos los labs siguen la misma estructura, para que sepas siempre dónde mirar:
 
-### Prerrequisitos
+| Sección | Para qué está |
+|---|---|
+| **¿Por qué X?** | Qué problema resuelve la herramienta. Si no te convence, el lab no te va a servir. |
+| **Objetivo del lab** | Qué vas a tener andando al final. |
+| **Prerrequisitos** | Qué labs y qué software necesitás antes de arrancar. |
+| **PASO 1, 2, 3...** | La secuencia ejecutable. Los pasos están numerados y son ordenados. |
+| **Checkpoint de validación** | La lista de chequeo. Si algo no da, no sigas al lab siguiente. |
+| **¡Momento Click! 🎯** | El experimento que hace visible lo que la herramienta resuelve. **No lo saltees**: es la parte que no podés leer en la documentación oficial. |
+| **Troubleshooting frecuente** | Los errores que efectivamente aparecen, con su fix. |
+| **Resultado esperado** | El estado mínimo con el que cerrás el lab. |
 
-### Instalación y setup
-
-Pasos detallados (template)
-
-### Validación
-
-### Código de ejemplo
-
-### Resultado esperado
+!!! tip "Si tenés poco tiempo"
+    Leé el **¿Por qué X?**, corré los PASOS y hacé el **Momento Click**. Con eso te
+    llevás el 80% del valor de cada lab.

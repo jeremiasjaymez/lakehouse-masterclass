@@ -17,6 +17,9 @@ services:
     environment:
       BAO_DEV_ROOT_TOKEN_ID: root
       BAO_DEV_LISTEN_ADDRESS: "0.0.0.0:8200"
+      # Idem Vault: para que `docker exec vault bao kv ...` funcione sin exportar nada.
+      BAO_ADDR: "http://127.0.0.1:8200"
+      BAO_TOKEN: root
     cap_add:
       - IPC_LOCK
 

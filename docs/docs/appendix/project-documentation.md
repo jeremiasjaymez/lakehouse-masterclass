@@ -17,8 +17,8 @@ En este repo, la documentación ya cumple esas cuatro condiciones.
 
 La estructura actual busca separar navegación, contexto y contenido detallado:
 
-- `docs/index.md`: portada corta.
-- `docs/guide.md`: índice general de la masterclass.
+- `docs/docs/index.md`: portada corta.
+- `docs/docs/guide.md`: índice general de la masterclass.
 - `docs/labs/`: un archivo por lab.
 - `mkdocs.yml`: navegación y configuración del sitio.
 

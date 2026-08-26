@@ -26,4 +26,4 @@ spark = (
 df = spark.read.csv("data/bronze/people.csv", header=True, inferSchema=True)
 
 df.writeTo("iceberg.bronze_people").createOrReplace()
-print("Table created successfully with", df.count(), "rows")
+print("Tabla iceberg.bronze_people creada con", df.count(), "filas")

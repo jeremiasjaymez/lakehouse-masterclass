@@ -1,8 +1,8 @@
-# PASO 11 — Terraform: bootstrap declarativo del stack
+# LAB 7 — Terraform: bootstrap declarativo del stack
 #
 # Qué hace este archivo:
-#   1. Crea los buckets bronze/silver/gold en MinIO  (opción A)
-#   2. Siembra el secreto "minio" en Vault            (opción B)
+#   1. Adopta los buckets bronze/silver/gold y crea platinum en MinIO
+#   2. Siembra el secreto "minio" en Vault (el que leen Spark y Dagster)
 #
 # Qué NO hace: levantar contenedores.
 # Para eso usá: docker compose up -d
@@ -87,7 +87,8 @@ resource "minio_s3_bucket" "platinum" {
 }
 
 # ─────────────────────────────────────────────
-# B) Secreto MinIO en Vault (el que usan los pasos 9 y 10)
+# B) Secreto MinIO en Vault
+#    Lo leen src/spark/09_spark_with_vault.py y el VaultResource de Dagster.
 # ─────────────────────────────────────────────
 
 # Nota: Vault en modo dev ya crea el mount "secret" automáticamente.
@@ -101,6 +102,4 @@ resource "vault_kv_secret_v2" "minio_creds" {
     access_key = var.minio_user
     secret_key = var.minio_password
   })
-
-  # Si cambiás bucket plantium y hacés terraform apply, veras como cambia.
 }

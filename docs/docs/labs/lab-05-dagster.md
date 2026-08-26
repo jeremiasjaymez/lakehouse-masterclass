@@ -40,28 +40,42 @@ Dagster ya está instalado vía pyproject.toml.
 
 ### PASO 1 - Crear proyecto Dagster
 
-Las dependencias relevantes ya están declaradas en el proyecto:
-
-```toml
-dagster==1.13.4
-dagster-webserver==1.13.4
-```
+Dagster trae su propio scaffolder. Correlo desde la raíz del repo:
 
 ```bash
-# 2. Scaffold (desde la raíz del repo)
+# 1. Scaffold del proyecto
 dagster project scaffold --name lakehouse_dagster
 ```
 
-#Agregar variable en lakehouse_dagster/.env
-export DAGSTER_HOME=$(pwd)/.dagster
+Te deja un paquete Python con la estructura mínima (`definitions.py`, `pyproject.toml`,
+carpeta de tests). Todavía no tiene assets: eso lo agregamos nosotros.
+
+**Configurar `DAGSTER_HOME`**
+
+Dagster necesita un directorio donde guardar el estado de las corridas (logs, runs,
+materializaciones). Sin esa variable, `dagster dev` levanta pero la UI queda en blanco:
 
 ```bash
-# 3. Levantar la UI para verificar
-cd lakehouse_dagster
-dagster dev
+cp lakehouse_dagster/.env.example lakehouse_dagster/.env
 ```
 
-```yaml
+Editá `lakehouse_dagster/.env` y poné la ruta **absoluta** de tu repo:
+
+```bash
+DAGSTER_HOME=/home/tu-usuario/repos/lakehouse-masterclass/.dagster
+```
+
+!!! warning "Tiene que ser absoluta"
+    `DAGSTER_HOME` no acepta rutas relativas ni `~`. Si ponés `./.dagster`, Dagster
+    arranca igual pero no persiste nada entre corridas.
+
+### PASO 2 - Revisar las dependencias del proyecto
+
+El scaffold genera un `pyproject.toml` propio, separado del de la raíz. Este es el
+del repo, con todo pineado — un curso donde cada alumno resuelve una versión distinta
+de Dagster es un curso irreproducible:
+
+```toml
 [project]
 name = "lakehouse_dagster"
 version = "0.1.0"
@@ -91,13 +105,23 @@ build-backend = "hatchling.build"
 [tool.dagster]
 module_name = "lakehouse_dagster.definitions"
 code_location_name = "lakehouse_dagster"
-
-[dependency-groups]
-dev = [
-    "dagster-webserver>=1.13.5",
-]
-
 ```
+
+!!! note "Por qué un pyproject aparte"
+    El proyecto Dagster se instala como paquete propio (`module_name` en
+    `[tool.dagster]` es lo que hace que `dagster dev` lo encuentre). Mantenerlo
+    separado te permite deployarlo solo, sin arrastrar Spark ni las dependencias
+    de los labs de IA.
+
+**Levantar la UI para verificar que el scaffold quedó bien**
+
+```bash
+cd lakehouse_dagster
+dagster dev
+```
+
+Deberías ver la UI en <http://localhost:3000> sin assets todavía. Cortá con `Ctrl+C`
+y seguimos.
 
 ### PASO 3 - Crear asset bronze_people
 
@@ -161,7 +185,7 @@ En Dagster UI:
 - Click en Materialize
 - Dagster ejecutará `bronze_people`, `silver_people` y `gold_people`
 
-### PASO 12 - Ver lineage
+### PASO 11 - Ver lineage
 
 En la UI:
 
@@ -169,7 +193,10 @@ En la UI:
 - Click en `gold_people`
 - Verás el grafo: `bronze_people -> silver_people -> gold_people`
 
-## Validación
+## Checkpoint de validación
+
+!!! important
+    Completá esta validación antes de continuar con el siguiente bloque.
 
 - Dagster levanta sin errores
 - Podés ver los assets en la UI
@@ -180,12 +207,12 @@ En la UI:
 ## ¡Momento Click! 🎯
 
 !!! success "Lineage automático + observabilidad de assets"
-    1. Matealización inicial: en la UI ir a **Assets**, seleccionar todas las tablas
+    1. Materialización inicial: en la UI ir a **Assets**, seleccionar todas las tablas
        y hacer **Materialize**.
     2. Hacer click en `gold_people` → vas a ver el grafo:
        `bronze_people → silver_people → gold_people`
-    3. Ahora **rompé el pipeline a propósito**: renambá el CSV o cambiá su path
-       en `bronze_people.py`. Re-materialización → Dagster muestra exactamente
+    3. Ahora **rompé el pipeline a propósito**: renombrá el CSV o cambiá su path
+       en `bronze_people.py`. Re-materializá → Dagster muestra exactamente
        qué falló y qué assets downstream quedaron sin datos válidos.
 
     Eso es lo que no tenés con scripts sueltos + cron: **lineage, observabilidad y
@@ -211,14 +238,15 @@ En la UI:
     registra el módulo correspondiente con `load_assets_from_package_module`.
 
     **`dagster dev` corre pero la UI está en blanco** → verificar que
-    `DAGSTER_HOME` apunta a un directorio existente. Creálo si no existe:
+    `DAGSTER_HOME` apunta a un directorio existente. Crealo si no existe:
     ```bash
     mkdir -p .dagster
     ```
 
 ## Resultado esperado
 
-- Al finalizar este lab, deberías tener:
+Al finalizar este lab, deberías tener:
+
 - Un proyecto Dagster funcionando
 - Assets bronze -> silver -> gold
 - Un job ETL

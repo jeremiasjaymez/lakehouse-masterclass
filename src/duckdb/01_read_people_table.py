@@ -19,4 +19,4 @@ df = con.execute(
 
 print(df)
 
-print("Table read successfully with", len(df), "rows")
+print("Tabla leída correctamente:", len(df), "filas")

@@ -69,15 +69,18 @@ Creá los buckets `bronze`, `silver` y `gold` desde la consola
 python src/minio/test_minio.py            # sube people.csv a bronze
 python src/spark/02_create_people_table.py   # crea iceberg.bronze_people
 python src/duckdb/01_read_people_table.py    # DuckDB lee POR RUTA
-python src/spark/03_insert_people_table.py   # segundo snapshot
+python src/spark/03_insert_people_table.py   # segundo snapshot (17 filas)
 python src/duckdb/02_read_snapshot_version.py
+python src/duckdb/03_read_people_table_as_version.py   # time travel al primero
 ```
 
 **Checkpoint**
 
 - `test_minio.py` imprime `Archivo descargado correctamente.`
-- `01_read_people_table.py` imprime `Table read successfully with 15 rows`.
+- `01_read_people_table.py` imprime `Tabla leída correctamente: 15 filas`.
 - `02_read_snapshot_version.py` lista **2 o más** `snapshot_id`.
+- `03_read_people_table_as_version.py` viaja al snapshot viejo y muestra **15 filas**:
+  Gaston y Gonzalo no aparecen.
 
 !!! note "Lo que tenés que registrar de este bloque"
     DuckDB leyó con `iceberg_scan('s3://bronze/iceberg/warehouse/bronze_people')`:

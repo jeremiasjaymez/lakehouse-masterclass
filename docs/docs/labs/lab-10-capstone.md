@@ -291,9 +291,11 @@ prompt = "mostrame las bios en mayúsculas ordenadas por id"
 
 !!! warning "El LLM se equivoca"
     A veces genera SQL inválido, inventa columnas o envuelve la respuesta en
-    ```` ```sql ````. El script ya limpia los backticks y fuerza `USE iceberg`.
-    Si falla, volvé a correrlo: es parte de la lección sobre las garantías reales
-    de un text-to-SQL.
+    ```` ```sql ````. El script limpia los backticks, y el prompt le pasa los
+    nombres de tres niveles ya resueltos (`nessie.bronze.people`) para que no
+    tenga que adivinar el catálogo. Aun así falla cada tanto: volvé a correrlo.
+    **Esa inconsistencia es la lección**, no un bug del lab — un text-to-SQL sin
+    validación no te da ninguna garantía sobre lo que va a ejecutar.
 
 ### PASO 12 - Validar CI/CD
 
@@ -328,6 +330,101 @@ curso en `nessie.gold.knowledge_chunks` y responde preguntas con fuentes.
 - `09_spark_with_vault.py` lee credenciales desde Vault
 - El LLM genera SQL y Spark lo ejecuta
 - Los tres workflows de GitHub Actions en verde
+
+## ¡Momento Click! 🎯
+
+!!! success "Un solo catálogo, y la rama es solo una columna más"
+
+    Todo el capstone se apoya en una idea: **el catálogo es el punto de
+    integración**. Nadie le pasó una ruta de S3 a nadie. Spark escribió por nombre,
+    Dagster orquestó por nombre, el LLM generó SQL por nombre. Este es el
+    experimento que lo hace visible.
+
+    Pegá esto en un archivo y correlo desde la raíz del repo:
+
+    ```python
+    import sys
+    sys.path.insert(0, "src/spark")
+    from utils import get_spark_multibranch
+
+    # UN catálogo por rama, en la MISMA sesión
+    spark = get_spark_multibranch(refs=("main", "dev"))
+
+    spark.sql("""
+        SELECT m.id,
+               m.name AS name_en_main,
+               d.name AS name_en_dev
+        FROM nessie_main.bronze.people m
+        JOIN nessie_dev.bronze.people d USING (id)
+        WHERE m.name <> d.name
+    """).show()
+    ```
+
+    Salida:
+
+    ```text
+    +---+------------+------------+
+    | id|name_en_main| name_en_dev|
+    +---+------------+------------+
+    |  1|    Jeremias|Jeremias DEV|
+    +---+------------+------------+
+    ```
+
+    ---
+
+    **Frená un segundo en lo que acabás de hacer.** Eso es un `JOIN` entre dos
+    versiones de la misma tabla, en la misma query, sin haber copiado un solo byte.
+    No hay dos tablas: hay una tabla y dos ramas, y el catálogo resuelve qué
+    archivos corresponden a cada una.
+
+    Ahora pensá en el reflejo que tenías antes de este curso. ¿Cómo comparabas
+    "producción contra lo que va a salir en el próximo deploy"? Duplicando la tabla
+    con un sufijo `_backup_final_v2`, o exportando dos CSV y abriéndolos en pestañas
+    distintas. **Acá el diff entre ambientes es una query.**
+
+    Y todo lo demás del capstone cuelga de ahí: Dagster no tiene idea de dónde viven
+    los archivos, DuckDB descubre las tablas sin que le expliques el layout, el LLM
+    genera SQL contra nombres estables. El día que muevas el warehouse a otro bucket
+    — o a otra nube — no cambia una línea de esos cuatro. Cambia una config del
+    catálogo. **Eso es un Lakehouse y no un montón de Parquet en un balde.**
+
+## Troubleshooting frecuente
+
+!!! warning "Si algo no anda"
+    **`terraform apply` falla con `connection refused`** → los contenedores no están
+    arriba. Terraform gestiona el estado inicial, no el runtime:
+    `docker compose up -d && docker ps`.
+
+    **`NoSuchNamespaceException: Namespace does not exist: silver`** → con el catálogo
+    REST los namespaces no se crean solos. Corré antes:
+
+    ```python
+    spark.sql("CREATE NAMESPACE IF NOT EXISTS nessie.silver")
+    ```
+
+    **Las ramas de Nessie desaparecieron después de reiniciar Docker** → verificá que
+    el volumen `nessie-data` siga existiendo (`docker volume ls`). El compose usa
+    RocksDB justamente para que el estado persista; un `docker compose down -v` lo borra.
+
+    **Dagster materializa `bronze/silver/gold` pero falla `silver_people_embeddings`**
+    → Ollama no está corriendo o falta el modelo:
+
+    ```bash
+    ollama list          # ¿está nomic-embed-text?
+    ollama pull nomic-embed-text
+    ```
+
+    **El SQL del LLM falla con `TABLE_OR_VIEW_NOT_FOUND`** → inventó un nombre de
+    tabla. Correlo de nuevo; si insiste, revisá que `nessie.silver.people` exista
+    (el PASO 5 tiene que haber corrido antes que el PASO 11).
+
+    **`py4j.protocol.Py4JJavaError` al arrancar cualquier script de Spark** → la
+    primera corrida baja los JARs de Iceberg desde Maven. Necesita red y tarda un
+    par de minutos. Si venís de cortar una corrida a la mitad, limpiá el caché:
+    `rm -rf ~/.ivy2/cache/org.apache.iceberg`.
+
+    **Los tres workflows no aparecen en GitHub Actions** → tu rama por defecto no es
+    `master`. Los workflows filtran por esa rama; ajustá el `branches:` de los tres.
 
 ## Entrega final del capstone
 

@@ -190,9 +190,13 @@ ollama list
 Deberías ver los dos modelos listados. Si no vas a hacer los labs de IA, podés
 saltear este paso y volver cuando llegues al Lab 9.
 
-## Validación final
+## Checkpoint de validación
 
-- Si todo está correcto, deberías tener:
+!!! important
+    Completá esta validación antes de continuar con el siguiente bloque.
+
+Si todo está correcto, deberías tener:
+
 - WSL2 funcionando
 - Ubuntu actualizado
 - Docker operativo
@@ -200,6 +204,92 @@ saltear este paso y volver cuando llegues al Lab 9.
 - Proyecto Python creado
 - Dependencias instaladas
 - Spark funcionando
+
+## ¡Momento Click! 🎯
+
+!!! success "El cluster sos vos"
+
+    Corré el smoke test y mirá con atención la línea que Spark imprime al arrancar:
+
+    ```bash
+    python src/spark/01_test_spark.py
+    ```
+
+    ```text
+    Setting default log level to "WARN"
+    ...
+    master = local[*]
+    ```
+
+    Ese `local[*]` es todo el "cluster": Spark levantó un driver y tantos executors
+    como cores tenga tu máquina, dentro de **un solo proceso de la JVM**. No hay
+    YARN, no hay Kubernetes, no hay un nodo master en otro lado.
+
+    ---
+
+    Y acá está el click, que vale para los once labs que siguen: **el mismo código
+    que vas a escribir en tu laptop corre sin cambios en un cluster de 200 nodos.**
+    Lo único que cambia es el `master`. Spark abstrae la topología; tu ETL no sabe ni
+    le importa si está corriendo sobre 8 cores o sobre 800.
+
+    Esa es exactamente la razón por la que este curso puede enseñar arquitecturas de
+    Lakehouse reales en una notebook: no estás usando una versión de juguete de
+    Spark. Estás usando Spark, con un `master` chiquito.
+
+## Troubleshooting frecuente
+
+!!! warning "Si algo no anda"
+    **`docker: command not found` dentro de WSL2** → falta activar la integración.
+    En Docker Desktop: **Settings → Resources → WSL Integration → Enable integration
+    with my default WSL distro**. Después cerrá y reabrí la terminal.
+
+    **`permission denied while trying to connect to the Docker daemon socket`** →
+    tu usuario no está en el grupo `docker`:
+
+    ```bash
+    sudo usermod -aG docker $USER
+    ```
+
+    Cerrá sesión y volvé a entrar (o `newgrp docker`).
+
+    **`uv: command not found` después de instalarlo** → el instalador lo deja en
+    `~/.local/bin`, que puede no estar en el `PATH`:
+
+    ```bash
+    echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc && source ~/.bashrc
+    ```
+
+    **`JAVA_HOME is not set` o `UnsupportedClassVersionError` al correr Spark** →
+    PySpark 3.5 necesita **Java 17**:
+
+    ```bash
+    sudo apt-get install -y openjdk-17-jdk
+    java -version                     # tiene que decir 17.x
+    export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
+    ```
+
+    Agregá ese `export` al `~/.bashrc` para que sobreviva a la próxima terminal.
+
+    **La primera corrida de Spark tarda muchísimo** → está bajando los JARs de
+    Iceberg desde Maven a `~/.ivy2`. Pasa una sola vez; necesita red. Si cortaste
+    una descarga a la mitad: `rm -rf ~/.ivy2/cache/org.apache.iceberg`.
+
+    **`uv sync` falla con un error de versión de Python** → el proyecto pide 3.12
+    (mirá `.python-version`). `uv` la baja solo, pero si tenés un venv viejo dando
+    vueltas, borralo y rehacelo: `rm -rf .venv && uv venv && uv sync`.
+
+    **WSL2 se come toda la RAM de Windows** → limitala en
+    `C:\Users\<vos>\.wslconfig` y reiniciá con `wsl --shutdown`:
+
+    ```ini
+    [wsl2]
+    memory=8GB
+    processors=4
+    ```
+
+    **El repo está en `/mnt/c/...` y todo va lentísimo** → cloná dentro del
+    filesystem de Linux (`~/repos/...`). Cruzar el puente 9p de `/mnt/c` en cada
+    lectura de Spark es la causa número uno de "esto tarda 10 minutos".
 
 ## Resultado esperado
 

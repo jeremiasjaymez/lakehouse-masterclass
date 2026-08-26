@@ -80,7 +80,7 @@ ingestion_ts TIMESTAMP
 
 `chunk_id` es el DNI reproducible de cada fragmento. Se calcula de forma determinística con el path, la sección, el índice y el texto del chunk. Si el contenido no cambia, el ID vuelve a salir igual.
 
-## PASO 1 - Probar el LLM sin RAG
+### PASO 1 - Probar el LLM sin RAG
 
 Primero tirá una pregunta sin darle contexto del repo al modelo:
 
@@ -90,7 +90,7 @@ python src/ai/ask_llm_without_rag.py "¿En qué lab se configura Nessie?"
 
 La respuesta puede sonar razonable, pero no está grounded en la documentación real de la masterclass. Ese es el problema que RAG viene a resolver.
 
-## PASO 2 - Ver cómo se segmentará (chunks) la documentación
+### PASO 2 - Ver cómo se segmentará (chunks) la documentación
 
 Ejecutá el chunker para revisar qué fragmentos salen del corpus:
 
@@ -105,7 +105,7 @@ El chunking usa esta regla:
 - Si una sección es muy larga, la divide por tamaño.
 - Cada chunk recibe un `chunk_id` determinístico.
 
-## PASO 3 - Crear el índice RAG en Iceberg
+### PASO 3 - Crear el índice RAG en Iceberg
 
 Este script lee los Markdown, genera embeddings con `nomic-embed-text` y guarda todo en Iceberg:
 
@@ -119,7 +119,7 @@ Salida esperada:
 Tabla gold_knowledge_chunks guardada con N chunks
 ```
 
-## PASO 4 - Preguntar con RAG
+### PASO 4 - Preguntar con RAG
 
 Ahora hacé la misma pregunta, pero recuperando contexto desde Iceberg:
 
@@ -142,9 +142,9 @@ Fuentes recuperadas:
 3. docs/docs/guide.md :: sección (score=...)
 ```
 
-Ahí está el click: el modelo ya no responde solo desde su entrenamiento, responde usando chunks recuperados desde el Lakehouse.
+El modelo ya no responde desde su entrenamiento: responde con chunks recuperados del Lakehouse, y te muestra de dónde los sacó. Guardate la comparación, que la retomamos en el Momento Click.
 
-## PASO 5 - Ajustar cuántos chunks se recuperan
+### PASO 5 - Ajustar cuántos chunks se recuperan
 
 Por defecto se recuperan 3 chunks (`top_k=3`). Podés cambiarlo con `--top-k`:
 
@@ -164,6 +164,92 @@ Más contexto no siempre significa mejor respuesta. Si traés chunks de más, po
 - La tabla `nessie.gold.knowledge_chunks` se crea correctamente.
 - La CLI con RAG responde preguntas y muestra fuentes.
 - Las fuentes recuperadas tienen sentido para la pregunta.
+
+## ¡Momento Click! 🎯
+
+!!! success "Tu índice vectorial tiene historial de Git"
+
+    **Primero, el contraste obvio.** Misma pregunta, dos veces:
+
+    ```bash
+    python src/ai/ask_llm_without_rag.py "¿En qué lab se configura Nessie?"
+    python src/spark/14_rag_answer_from_iceberg.py "¿En qué lab se configura Nessie?"
+    ```
+
+    El primero contesta con seguridad y se lo inventa — `llama3.1` no tiene la menor
+    idea de que tu masterclass existe. El segundo contesta **con fuentes**, y las
+    fuentes son archivos de tu repo.
+
+    **Pero el click de verdad es este:** tu índice vectorial es una tabla Iceberg.
+    Preguntale cosas con SQL:
+
+    ```python
+    spark.sql("""
+        SELECT source_path, COUNT(*) AS chunks
+        FROM nessie.gold.knowledge_chunks
+        GROUP BY source_path ORDER BY chunks DESC
+    """).show(truncate=False)
+    ```
+
+    Y ahora mirá los snapshots:
+
+    ```python
+    spark.sql("SELECT * FROM nessie.gold.knowledge_chunks.snapshots").show()
+    ```
+
+    ---
+
+    Frená acá. **Tu índice RAG tiene time travel.**
+
+    Eso significa que podés responder preguntas que en un vector DB tradicional son
+    difíciles o directamente imposibles:
+
+    - *"¿Por qué el bot respondió esto la semana pasada?"* → viajás al snapshot de
+      esa fecha y reproducís el retrieval **exacto**.
+    - *"¿Qué cambió en el índice cuando reescribí el Lab 7?"* → un diff entre dos
+      snapshots.
+    - *"Quiero probar un chunking nuevo sin romper el que anda"* → lo indexás en una
+      rama de Nessie, comparás las respuestas de las dos ramas, y mergeás solo si
+      mejoró.
+
+    Ese último punto es el que cierra el curso entero: **A/B testing de una
+    estrategia de RAG usando ramas de datos.** Es exactamente el mismo mecanismo que
+    usaste en el Lab 3 para un `UPDATE` en una tabla de 15 filas.
+
+    Un vector DB dedicado te da búsqueda ANN más rápida. Lo que no te da es
+    versionado, auditoría, time travel ni transacciones — y para un corpus de
+    documentación interna, casi siempre importa más lo segundo.
+
+## Troubleshooting frecuente
+
+!!! warning "Si algo no anda"
+    **`TABLE_OR_VIEW_NOT_FOUND: nessie.gold.knowledge_chunks`** → falta indexar, o
+    falta el namespace:
+
+    ```bash
+    python src/spark/13_save_rag_index_iceberg.py
+    ```
+
+    **El chunker no encuentra documentos** → `find_corpus_files()` busca en
+    `docs/docs/`, relativo al **cwd**. Corré los scripts desde la raíz del repo.
+
+    **Las fuentes recuperadas no tienen nada que ver con la pregunta** → probá subir
+    el contexto con `--top-k 5`. Si sigue mal, reindexá: cambiaste la documentación
+    y el índice quedó viejo (los `chunk_id` son determinísticos, pero la tabla no se
+    actualiza sola).
+
+    **El retrieval tarda cada vez más** → `14_rag_answer_from_iceberg.py` hace
+    `.collect()` de **toda** la tabla y calcula la similitud en Python. Es brute
+    force a propósito: con unos cientos de chunks va bien y se entiende de una
+    lectura. Con decenas de miles vas a querer un índice ANN — ese es justamente el
+    límite que te muestra cuándo un vector DB empieza a valer la pena.
+
+    **`No encontré evidencia suficiente en la documentación indexada`** → no es un
+    error: es el prompt haciendo su trabajo. Preferimos que diga "no sé" antes que
+    inventar. Si pasa con preguntas que sí están cubiertas, subí `--top-k`.
+
+    **Respuestas en inglés** → `llama3.1` a veces ignora la instrucción de idioma.
+    Volvé a correrlo o reforzá la línea de español en `build_rag_prompt()`.
 
 ## Resultado esperado
 
