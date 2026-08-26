@@ -167,6 +167,7 @@ python src/duckdb/05_attach_nessie_catalog.py
 ```bash
 cp lakehouse_dagster/.env.example lakehouse_dagster/.env
 # editá DAGSTER_HOME con la ruta ABSOLUTA de tu repo
+mkdir -p .dagster                 # Dagster no crea este directorio solo
 cd lakehouse_dagster && dagster dev
 ```
 

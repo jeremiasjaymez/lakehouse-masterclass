@@ -326,7 +326,8 @@ está declarado como código.
 
 - `terraform -version` responde
 - `terraform init` descarga los providers `minio` y `vault`
-- `terraform plan` muestra 3 recursos a importar y 1 a crear
+- `terraform plan` muestra `3 to import, 2 to add` (los buckets adoptados, más
+  `platinum` y el secreto de Vault)
 - `terraform apply` termina sin errores
 - El bucket `platinum` aparece en la consola de MinIO
 - `terraform output` muestra los cuatro buckets y el path del secreto
@@ -335,7 +336,7 @@ está declarado como código.
 
 ## ¡Momento Click! 🎯
 
-!!! success "El state es descartable, el código no"
+!!! success "El state es descartable — pero solo para lo que sabés adoptar"
 
     Este es el experimento que separa "corrí unos comandos" de "entendí IaC".
 
@@ -347,30 +348,94 @@ está declarado como código.
     ```
 
     Acabás de tirar a la basura todo lo que Terraform sabía sobre tu infraestructura.
-    En un flujo imperativo esto sería una catástrofe.
 
-    **2. Mirá los buckets en MinIO.** Siguen ahí. Los datos no se tocaron.
+    **2. Mirá los buckets en MinIO.** Siguen ahí. Los datos no se tocaron: el state
+    describe la infra, no *es* la infra.
 
     **3. Corré `terraform apply` de nuevo.**
+
+    ```text
+    minio_s3_bucket.bronze: Preparing import... [id=bronze]
+    minio_s3_bucket.silver: Preparing import... [id=silver]
+    minio_s3_bucket.gold:   Preparing import... [id=gold]
+
+      # minio_s3_bucket.bronze   will be imported
+      # minio_s3_bucket.silver   will be imported
+      # minio_s3_bucket.gold     will be imported
+      # minio_s3_bucket.platinum will be created
+      # vault_kv_secret_v2.minio_creds will be created
+
+    Plan: 3 to import, 2 to add, 0 to change, 0 to destroy.
+    ```
+
+    Los tres buckets con bloque `import {}` **vuelven solos al state**. Nadie los
+    creó de nuevo, nadie perdió un byte: Terraform los reconoció y los adoptó.
+
+    **4. Y entonces se rompe:**
+
+    ```text
+    Error: [FATAL] bucket already exists! (platinum): <nil>
+
+      with minio_s3_bucket.platinum,
+      on main.tf line 84, in resource "minio_s3_bucket" "platinum":
+    ```
+
+    ---
+
+    **Ese error es el momento click, no un accidente del lab.**
+
+    `platinum` es el único recurso sin bloque `import {}`. Sin ese bloque, Terraform
+    no tiene forma de saber que el bucket ya existe en el mundo real: lo único que
+    ve es "está en mi código, no está en mi state, entonces hay que crearlo". Y MinIO
+    lo rechaza.
+
+    La diferencia entre los tres que se recuperaron solos y el que quedó trabado es
+    **cuatro líneas de HCL**. Eso es lo que compra un `import {}`: no es azúcar
+    sintáctico, es la diferencia entre un state reconstruible y uno que si se pierde
+    te deja arreglando cosas a mano.
+
+    **5. Rescatalo con la versión imperativa:**
+
+    ```bash
+    terraform import minio_s3_bucket.platinum platinum
+    ```
+
+    ```text
+    Import successful!
+    ```
+
+    Acá se ve en vivo el contraste del PASO 3: `terraform import` es el comando que
+    corrés vos, una vez, desde tu terminal — y no queda rastro en el repo. El bloque
+    `import {}` es la misma operación, pero declarada en el código, donde cualquiera
+    que clone la hereda.
+
+    **6. Cerrá el círculo:**
 
     ```bash
     terraform apply
     ```
 
-    Terraform re-importa `bronze`, `silver` y `gold` gracias a los bloques `import {}`,
-    detecta que `platinum` ya existe, reconstruye el state completo y te dice
-    **"No changes"**.
+    ```text
+    No changes. Your infrastructure matches the configuration.
+    Apply complete! Resources: 0 added, 0 changed, 0 destroyed.
+    ```
 
     ---
 
-    **Eso es el click.** El state no es la fuente de verdad: es un caché. La fuente
-    de verdad es el código, y el código sabe reconstruirse solo. Es la misma
-    diferencia que viste en el Lab 3 entre "hacer un backup del CSV" y "tener el
-    historial en Nessie".
+    Ahora sí: el state se reconstruyó **entero desde el código**, y el código es la
+    fuente de verdad. Es la misma diferencia que viste en el Lab 3 entre "hacer un
+    backup del CSV" y "tener el historial en Nessie".
 
-    Y ahora hacelo al revés: borrá `platinum` a mano en la consola de MinIO y corré
-    `terraform plan`. Terraform ve el drift y te propone arreglarlo. **La infra
-    dejó de ser algo que hacés y pasó a ser algo que declarás.**
+    !!! tip "Dejalo declarativo"
+        Si querés que `platinum` también se recupere solo la próxima vez, agregale su
+        bloque en `main.tf` — ahora que el bucket existe, le corresponde:
+
+        ```hcl
+        import {
+          to = minio_s3_bucket.platinum
+          id = "platinum"
+        }
+        ```
 
 ## Troubleshooting frecuente
 

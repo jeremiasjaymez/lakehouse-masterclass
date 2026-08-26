@@ -1,6 +1,6 @@
 """
-PASO 9 — Merge dev → staging (Nessie REST API)
-===============================================
+LAB 3, PASO 8 — Merge dev → staging (Nessie REST API)
+=====================================================
 Aplica todos los commits de la rama dev sobre staging.
 La rama dev permanece intacta.
 

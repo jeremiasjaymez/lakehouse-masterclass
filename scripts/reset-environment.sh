@@ -191,7 +191,11 @@ fi
 step "4/5  Borrando el estado derivado local"
 run rm -rf spark-warehouse iceberg_catalog.db .dagster
 run rm -f data/bronze/people_downloaded.csv data/silver/people_with_embeddings.json
-$DRY_RUN || ok "listo"
+
+# DAGSTER_HOME tiene que existir como directorio o 'dagster dev' se niega a arrancar.
+# Lo recreamos vacío: borramos el historial de runs, no la configuración.
+run mkdir -p .dagster
+$DRY_RUN || ok "listo (.dagster recreado vacío)"
 
 if [[ -f data/bronze/people.csv ]]; then
     ok "data/bronze/people.csv intacto ($(wc -l < data/bronze/people.csv) líneas)"

@@ -1,3 +1,9 @@
+"""
+LAB 3 — Crear las ramas dev, staging y prod en Nessie (API REST).
+
+Las ramas se crean desde el tip de main, igual que un `git branch`.
+"""
+
 import requests
 
 BASE = "http://localhost:19120/api/v1"
@@ -17,17 +23,20 @@ def create_branch(name, source="main"):
         json={"type": "BRANCH", "name": name, "hash": source_hash},
     )
     if r.status_code == 200:
-        print(f"Created branch '{name}' from '{source}' @ {source_hash[:12]}...")
+        print(f"  ✓ rama '{name}' creada desde '{source}' @ {source_hash[:12]}...")
+    elif r.status_code == 409:
+        # Correr el script dos veces es normal: la rama ya está, no es un error.
+        print(f"  · rama '{name}' ya existía, la dejamos como está")
     else:
-        print(f"Failed to create '{name}': {r.status_code} {r.text}")
+        print(f"  ✗ no pude crear '{name}': {r.status_code} {r.text}")
 
 
 create_branch("dev")
 create_branch("staging")
 create_branch("prod")
 
-# Verify
+# Verificamos que quedaron las cuatro
 refs = requests.get(f"{BASE}/trees").json()["references"]
-print("\nAll branches:")
+print("\nRamas en Nessie:")
 for ref in refs:
     print(f"  {ref['name']}")

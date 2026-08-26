@@ -65,9 +65,20 @@ Editá `lakehouse_dagster/.env` y poné la ruta **absoluta** de tu repo:
 DAGSTER_HOME=/home/tu-usuario/repos/lakehouse-masterclass/.dagster
 ```
 
-!!! warning "Tiene que ser absoluta"
-    `DAGSTER_HOME` no acepta rutas relativas ni `~`. Si ponés `./.dagster`, Dagster
-    arranca igual pero no persiste nada entre corridas.
+Y creá el directorio, porque Dagster **no lo crea solo**:
+
+```bash
+mkdir -p .dagster
+```
+
+!!! warning "Tiene que ser absoluta, y tiene que existir"
+    `DAGSTER_HOME` no acepta rutas relativas ni `~`. Y si el directorio no existe,
+    `dagster dev` corta con:
+
+    ```text
+    DagsterInvariantViolationError: $DAGSTER_HOME "..." is not a directory
+    or does not exist
+    ```
 
 ### PASO 2 - Revisar las dependencias del proyecto
 
