@@ -268,33 +268,78 @@ Compará la respuesta sin RAG con la respuesta con RAG: ese contraste es el lab.
 
 ## Volver a cero
 
-Para repetir el curso desde limpio, o si algo quedó en un estado raro:
+Para repetir el curso desde limpio, o si algo quedó en un estado raro.
+
+!!! warning "Hay DOS warehouses, no uno"
+    Es el error más fácil de cometer al resetear. El Lab 2 usa el catálogo `hadoop`
+    (`bronze/iceberg/warehouse/`) y del Lab 3 en adelante todo vive en el warehouse
+    que administra Nessie (`bronze/iceberg/nessie-warehouse/`). Si borrás solo el
+    segundo, el Lab 2 arranca con los snapshots de tu corrida anterior y el
+    checkpoint de time travel te va a dar cualquier cosa.
 
 ```bash
-# 1. Bajar todo y borrar el estado de Nessie (ramas y tablas)
+# 1. Bajar todo y borrar el estado de Nessie (ramas y commits)
 docker compose down -v
 
-# 2. Borrar el warehouse que administra Nessie (NO borra tus buckets)
+# 2. Levantar solo MinIO para poder limpiar los buckets
+docker compose up -d minio
+```
+
+```bash
+# 3. Vaciar los DOS warehouses (los buckets NO se borran)
 python - <<'PY'
 import boto3
 s3 = boto3.client("s3", endpoint_url="http://127.0.0.1:9000",
                   aws_access_key_id="admin", aws_secret_access_key="password")
-pages = s3.get_paginator("list_objects_v2").paginate(
-    Bucket="bronze", Prefix="iceberg/nessie-warehouse/")
-n = 0
-for page in pages:
-    for obj in page.get("Contents", []):
-        s3.delete_object(Bucket="bronze", Key=obj["Key"]); n += 1
-print("objetos borrados:", n)
+total = 0
+for prefix in ["iceberg/nessie-warehouse/", "iceberg/warehouse/", "people.csv"]:
+    batch = []
+    for page in s3.get_paginator("list_objects_v2").paginate(Bucket="bronze", Prefix=prefix):
+        for obj in page.get("Contents", []):
+            batch.append({"Key": obj["Key"]})
+            if len(batch) == 1000:
+                s3.delete_objects(Bucket="bronze", Delete={"Objects": batch})
+                total += len(batch); batch = []
+    if batch:
+        s3.delete_objects(Bucket="bronze", Delete={"Objects": batch}); total += len(batch)
+print("objetos borrados:", total)
 PY
-
-# 3. Volver a levantar
-docker compose up -d
 ```
 
-!!! danger "Lo que NO hace falta borrar"
-    No borres `minio-data/` a mano: ahí viven tus buckets. Si lo borrás, tenés que
-    volver a crear `bronze`, `silver` y `gold` desde la consola antes de seguir.
+```bash
+# 4. Estado derivado local (todo esto se regenera corriendo los labs)
+rm -rf spark-warehouse iceberg_catalog.db .dagster
+rm -f data/bronze/people_downloaded.csv data/silver/people_with_embeddings.json
+```
+
+```bash
+# 5. Volver a levantar y re-sembrar los secretos
+docker compose up -d
+docker exec vault vault kv put secret/minio access_key=admin secret_key=password
+docker exec vault vault kv put secret/nessie user=admin password=admin
+```
+
+El PASO 5 hace falta porque Vault corre en **modo dev**: guarda todo en memoria y un
+`docker compose down` se lleva los secretos puestos. Si ya hiciste el Lab 7, en vez de
+los `kv put` podés correr `terraform apply` — que es exactamente el punto de ese lab.
+
+**Validar que quedó limpio**
+
+```bash
+curl -s http://localhost:19120/api/v1/trees | python3 -m json.tool | grep '"name"'
+```
+
+Tiene que aparecer **solo `main`**. Si ves `dev`, `staging` o `prod`, el volumen de
+Nessie no se borró: revisá que hayas corrido `down -v` con el `-v`.
+
+!!! danger "Lo que NO hay que borrar"
+    - **`minio-data/`** — ahí viven tus buckets. Si lo borrás, tenés que volver a crear
+      `bronze`, `silver`, `gold` y `platinum` antes de seguir.
+    - **`data/bronze/people.csv`** — es el dataset del curso y está versionado. Si lo
+      pisaste sin querer: `git checkout -- data/bronze/people.csv`.
+    - **`~/.ivy2/`** — los ~300 MB de jars de Spark. Borrarlo solo agrega 3 minutos
+      a tu próxima corrida.
+    - **Los modelos de Ollama** — son 5 GB, no los bajes de nuevo.
 
 ---
 
