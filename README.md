@@ -223,3 +223,9 @@ Apache-2.0 — fork it, teach it, use it at work.
 ## Licencia
 
 Apache-2.0
+
+## Nota sobre asistencia de IA
+
+El diseño del curso, la arquitectura y el contenido de los labs son propios.
+Partes de la documentación, la migración del catálogo a Nessie REST y la
+verificación de los labs se hicieron con asistencia de [Claude Code](https://claude.com/claude-code).
