@@ -1,0 +1,39 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+# Entornos locales — copiar desde .env.example (nunca versionar secretos)
+.env
+.env.*
+!.env.example
+
+# Catálogo Iceberg local (pyiceberg sqlite) — se regenera solo
+iceberg_catalog.db
+
+# Warehouse local de Spark
+spark-warehouse/
+
+# Artefactos generados por los labs (se regeneran con los scripts)
+data/silver/people_with_embeddings.json
+data/bronze/people_downloaded.csv
+
+# MinIO local data
+minio-data/
+
+# Dagster temporary home directories
+.tmp_dagster_home*/
+.dagster*/
+
+# MkDocs generated site
+docs/site/
+
+# Caches de tooling
+.ruff_cache/
+.pytest_cache/

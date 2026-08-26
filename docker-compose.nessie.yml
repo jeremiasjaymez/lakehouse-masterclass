@@ -1,0 +1,34 @@
+# Nessie actúa como Iceberg REST Catalog: requiere MinIO corriendo.
+# Levantá primero docker-compose.minio.yml (comparten la red 'lakehouse').
+services:
+  nessie:
+    image: ghcr.io/projectnessie/nessie:0.108.4
+    container_name: nessie
+    ports:
+      - "19120:19120"
+    volumes:
+      - nessie-data:/home/nessie
+    environment:
+      # Estado persistente: sin esto, cada reinicio borra ramas y tablas.
+      - nessie.version.store.type=ROCKSDB
+      - nessie.version.store.persist.rocks.database-path=/home/nessie/rocksdb
+      # --- Nessie como Iceberg REST Catalog ---
+      - nessie.catalog.default-warehouse=warehouse
+      - nessie.catalog.warehouses.warehouse.location=s3://bronze/iceberg/nessie-warehouse/
+      - nessie.catalog.service.s3.default-options.region=us-east-1
+      - nessie.catalog.service.s3.default-options.path-style-access=true
+      - nessie.catalog.service.s3.default-options.access-key=urn:nessie-secret:quarkus:nessie.catalog.secrets.access-key
+      - nessie.catalog.secrets.access-key.name=admin
+      - nessie.catalog.secrets.access-key.secret=password
+      # Endpoint que usa Nessie (red de Docker) y el que le informa a los clientes (host)
+      - nessie.catalog.service.s3.default-options.endpoint=http://minio:9000/
+      - nessie.catalog.service.s3.default-options.external-endpoint=http://127.0.0.1:9000/
+      # Los clientes firman con sus propias credenciales (setup local simple)
+      - nessie.catalog.service.s3.default-options.request-signing-enabled=false
+
+volumes:
+  nessie-data:
+
+networks:
+  default:
+    name: lakehouse

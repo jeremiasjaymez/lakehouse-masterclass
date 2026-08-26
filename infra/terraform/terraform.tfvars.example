@@ -1,0 +1,9 @@
+# Copiá este archivo como terraform.tfvars y ajustá los valores.
+# terraform.tfvars está en .gitignore (nunca se commitea con credenciales reales).
+
+minio_server   = "localhost:9000"
+minio_user     = "admin"
+minio_password = "password"
+
+vault_addr  = "http://localhost:8200"
+vault_token = "root"

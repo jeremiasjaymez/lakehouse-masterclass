@@ -1,0 +1,64 @@
+{
+  "name": "Lakehouse Masterclass",
+
+  // Imagen base con Python 3.12 (la versión que pide el pyproject.toml).
+  "image": "mcr.microsoft.com/devcontainers/python:3.12-bookworm",
+
+  "features": {
+    // Docker adentro del contenedor: necesario para `docker compose up -d`
+    // (MinIO + Nessie + Vault).
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {
+      "version": "latest",
+      "moby": true
+    },
+    // Spark corre sobre la JVM. PySpark 3.5.x soporta Java 17.
+    "ghcr.io/devcontainers/features/java:1": {
+      "version": "17",
+      "jdkDistro": "tem"
+    }
+  },
+
+  // Codespaces: pedí una máquina que aguante Spark + 3 contenedores.
+  "hostRequirements": {
+    "cpus": 4,
+    "memory": "8gb",
+    "storage": "32gb"
+  },
+
+  "forwardPorts": [9000, 9001, 19120, 8200, 3000, 8000],
+  "portsAttributes": {
+    "9000": { "label": "MinIO API" },
+    "9001": { "label": "MinIO Console", "onAutoForward": "openBrowserOnce" },
+    "19120": { "label": "Nessie" },
+    "8200": { "label": "Vault" },
+    "3000": { "label": "Dagster" },
+    "8000": { "label": "MkDocs" }
+  },
+
+  "onCreateCommand": "bash .devcontainer/setup.sh",
+
+  "remoteEnv": {
+    "DAGSTER_HOME": "${containerWorkspaceFolder}/.dagster",
+    "VAULT_ADDR": "http://localhost:8200",
+    "VAULT_TOKEN": "root",
+    "NO_MKDOCS_2_WARNING": "1",
+    "PATH": "${containerEnv:PATH}:${containerWorkspaceFolder}/.venv/bin:/home/vscode/.local/bin"
+  },
+
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "charliermarsh.ruff",
+        "ms-azuretools.vscode-docker",
+        "redhat.vscode-yaml"
+      ],
+      "settings": {
+        "python.defaultInterpreterPath": "${containerWorkspaceFolder}/.venv/bin/python",
+        "[python]": { "editor.defaultFormatter": "charliermarsh.ruff" }
+      }
+    }
+  },
+
+  "remoteUser": "vscode"
+}

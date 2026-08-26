@@ -1,0 +1,39 @@
+name: Python CI
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v3
+
+      # Ruff pineado: 'uvx ruff' sin versión trae la última release, y una regla
+      # nueva puede poner el CI en rojo sin que hayas tocado una línea de código.
+      - name: Ruff check
+        run: uvx ruff@0.15.14 check .
+
+      - name: Ruff format (check)
+        run: uvx ruff@0.15.14 format --check .
+
+  tests:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: lakehouse_dagster
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+      - name: Install deps
+        run: uv sync --extra dev
+      - name: Run tests
+        run: uv run --extra dev pytest -v

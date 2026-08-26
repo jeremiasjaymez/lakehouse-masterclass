@@ -1,0 +1,37 @@
+[project]
+name = "lakehouse-masterclass"
+version = "1.0.0"
+description = "Open-Source Lakehouse Masterclass Environment"
+requires-python = ">=3.12,<3.13"
+
+dependencies = [
+    "pyspark==3.5.4",
+    "pyiceberg[pyarrow]==0.11.1",
+    "boto3==1.43.8",
+    "dagster==1.13.5",
+    "dagster-webserver==1.13.5",
+    "python-dotenv==1.2.2",
+    "requests==2.32.3",
+    "pandas==2.2.3",
+    "duckdb==1.5.2",
+    "ollama==0.6.2",
+]
+
+[dependency-groups]
+dev = [
+    "pytest==9.0.3",
+    "jupyterlab==4.5.7",
+]
+docs = [
+    "mkdocs==1.6.1",
+    "mkdocs-material==9.7.6",
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Estos scripts ajustan sys.path antes de importar módulos hermanos (src/ no es
+# un paquete instalado), así que los imports no pueden ir todos arriba.
+"src/spark/09_spark_with_vault.py" = ["E402"]
+"src/spark/12_run_generated_sql.py" = ["E402"]
+"src/spark/13_save_rag_index_iceberg.py" = ["E402"]
+"src/spark/14_rag_answer_from_iceberg.py" = ["E402"]
+

@@ -1,0 +1,16 @@
+id,name,bio,department,country
+1,Jeremias,"Data engineer apasionado por lakehouse y arquitecturas open-source",Engineering,Argentina
+2,Franco,"Diseñador UX especializado en productos de datos",Product,Argentina
+3,Matias,"Analista de datos con foco en analytics y visualización",Analytics,Mexico
+4,Agustina,"Ingeniera de datos con experiencia en pipelines batch y streaming",Engineering,Argentina
+5,Camila,"Data scientist especializada en NLP y modelos de lenguaje",Analytics,Colombia
+6,Rodrigo,"DevOps engineer con experiencia en infraestructura cloud y Kubernetes",Engineering,España
+7,Valentina,"Product manager de plataformas de datos e infraestructura analítica",Product,Mexico
+8,Lucas,"Analista BI con experiencia en dashboards interactivos y KPIs",Analytics,Brasil
+9,Florencia,"Ingeniera de datos especializada en Spark y procesamiento distribuido",Engineering,Argentina
+10,Diego,"Arquitecto de datos con foco en lakehouse y data mesh en produccion",Engineering,Mexico
+11,Paula,"Data engineer con experiencia en Apache Iceberg y Apache Flink",Engineering,Colombia
+12,Tomas,"Científico de datos especializado en series temporales y forecasting",Analytics,Argentina
+13,Sofia,"Especialista en seguridad de datos gobernanza y cumplimiento normativo",Operations,España
+14,Julian,"Ingeniero de plataforma con foco en orquestación y CI/CD para datos",Operations,Brasil
+15,Renata,"Analista de datos con experiencia en dbt y transformaciones SQL",Analytics,Colombia

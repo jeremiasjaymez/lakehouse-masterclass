@@ -1,0 +1,25 @@
+# Alternativa 100% open source a docker-compose.vault.yml — ver Lab 6.
+#
+# OpenBao es el fork de Vault bajo la Linux Foundation (MPL-2.0), creado cuando
+# HashiCorp relicenció Vault a BUSL-1.1 en 2023. Es compatible a nivel de API:
+# src/vault/read_secrets.py y el VaultResource de Dagster funcionan sin cambios.
+#
+#   docker compose -f docker-compose.openbao.yml up -d
+#
+# La única diferencia práctica: la CLI se llama `bao` en vez de `vault`, y las
+# variables de entorno usan el prefijo BAO_ en vez de VAULT_.
+services:
+  vault:
+    image: openbao/openbao:2.6.2
+    container_name: vault
+    ports:
+      - "8200:8200"
+    environment:
+      BAO_DEV_ROOT_TOKEN_ID: root
+      BAO_DEV_LISTEN_ADDRESS: "0.0.0.0:8200"
+    cap_add:
+      - IPC_LOCK
+
+networks:
+  default:
+    name: lakehouse

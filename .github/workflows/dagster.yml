@@ -1,0 +1,26 @@
+name: Dagster CI
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  validate-definitions:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v3
+
+      - name: Install deps
+        run: |
+          uv sync
+          uv pip install -e ./lakehouse_dagster --no-deps
+
+      - name: Validate Dagster definitions
+        run: uv run dagster definitions validate -m lakehouse_dagster.definitions

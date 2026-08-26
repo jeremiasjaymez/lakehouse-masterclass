@@ -1,0 +1,37 @@
+site_name: Documentación del curso
+site_description: Labs
+docs_dir: docs
+site_dir: site
+
+theme:
+  name: material
+
+nav:
+  - Home: index.md
+  - Guide: guide.md
+  - Labs:
+      - Lab 0 - Setup Global: labs/lab-00-setup-global.md
+      - Lab 1 - MinIO: labs/lab-01-minio.md
+      - Lab 2 - Iceberg: labs/lab-02-iceberg.md
+      - Lab 3 - Nessie: labs/lab-03-nessie.md
+      - Lab 4 - Spark: labs/lab-04-spark.md
+      - Lab 5 - Dagster: labs/lab-05-dagster.md
+      - Lab 6 - Vault: labs/lab-06-vault.md
+      - Lab 7 - Terraform: labs/lab-07-terraform.md
+      - Lab 8 - CI/CD: labs/lab-08-ci-cd.md
+      - Lab 9 - IA Aplicada: labs/lab-09-ai.md
+      - Lab 10 - Capstone: labs/lab-10-capstone.md
+      - Bonus:
+          - Lab 11 - RAG Local sobre el Lakehouse: labs/lab-11-rag.md
+  - Appendix:
+      - Recorrido del alumno: appendix/student-runbook.md
+      - Guía de la cohorte: appendix/cohorte.md
+      - Cómo documentar el proyecto: appendix/project-documentation.md
+      - Tests para Assets de Dagster: appendix/testing-dagster.md
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - toc:
+      permalink: true
