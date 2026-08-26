@@ -268,62 +268,63 @@ Compará la respuesta sin RAG con la respuesta con RAG: ese contraste es el lab.
 
 ## Volver a cero
 
-Para repetir el curso desde limpio, o si algo quedó en un estado raro.
-
-!!! warning "Hay DOS warehouses, no uno"
-    Es el error más fácil de cometer al resetear. El Lab 2 usa el catálogo `hadoop`
-    (`bronze/iceberg/warehouse/`) y del Lab 3 en adelante todo vive en el warehouse
-    que administra Nessie (`bronze/iceberg/nessie-warehouse/`). Si borrás solo el
-    segundo, el Lab 2 arranca con los snapshots de tu corrida anterior y el
-    checkpoint de time travel te va a dar cualquier cosa.
+Para repetir el curso desde limpio, o si algo quedó en un estado raro. Hay un script
+que hace todos los pasos:
 
 ```bash
-# 1. Bajar todo y borrar el estado de Nessie (ramas y commits)
+./scripts/reset-environment.sh --dry-run   # mostrar qué haría, sin tocar nada
+./scripts/reset-environment.sh             # ejecutar, pidiendo confirmación
+```
+
+Borra el estado **derivado** y preserva lo que cuesta caro volver a tener:
+
+| Se borra | Se preserva |
+|---|---|
+| Los dos warehouses en MinIO | Los buckets (bronze, silver, gold, platinum) |
+| El volumen `nessie-data` (ramas y commits) | `data/bronze/people.csv` (el dataset, versionado) |
+| Los secretos de Vault (modo dev) | `~/.ivy2/` (~300 MB de jars de Spark) |
+| `spark-warehouse/`, `iceberg_catalog.db`, `.dagster/` | Los modelos de Ollama (~5 GB) |
+| Los artefactos de `data/` (descargas, embeddings) | |
+
+Al final valida solo: Nessie tiene que quedar con **una sola rama, `main`**, y el
+secreto `minio` re-sembrado en Vault.
+
+!!! warning "Hay DOS warehouses, no uno"
+    Es el error más fácil de cometer al resetear a mano. El Lab 2 usa el catálogo
+    `hadoop` (`bronze/iceberg/warehouse/`) y del Lab 3 en adelante todo vive en el
+    warehouse que administra Nessie (`bronze/iceberg/nessie-warehouse/`). Si borrás
+    solo el segundo, el Lab 2 arranca con los snapshots de tu corrida anterior y el
+    checkpoint de time travel te va a mostrar datos de otro día.
+
+### Qué hace por dentro
+
+Si preferís correrlo a mano, o querés entender qué toca cada paso:
+
+```bash
+# 1. Bajar todo y borrar el estado de Nessie (el -v es lo que borra las ramas)
 docker compose down -v
 
 # 2. Levantar solo MinIO para poder limpiar los buckets
 docker compose up -d minio
-```
 
-```bash
-# 3. Vaciar los DOS warehouses (los buckets NO se borran)
-python - <<'PY'
-import boto3
-s3 = boto3.client("s3", endpoint_url="http://127.0.0.1:9000",
-                  aws_access_key_id="admin", aws_secret_access_key="password")
-total = 0
-for prefix in ["iceberg/nessie-warehouse/", "iceberg/warehouse/", "people.csv"]:
-    batch = []
-    for page in s3.get_paginator("list_objects_v2").paginate(Bucket="bronze", Prefix=prefix):
-        for obj in page.get("Contents", []):
-            batch.append({"Key": obj["Key"]})
-            if len(batch) == 1000:
-                s3.delete_objects(Bucket="bronze", Delete={"Objects": batch})
-                total += len(batch); batch = []
-    if batch:
-        s3.delete_objects(Bucket="bronze", Delete={"Objects": batch}); total += len(batch)
-print("objetos borrados:", total)
-PY
-```
+# 3. Vaciar los DOS warehouses con boto3 (los buckets NO se borran).
+#    Prefijos: iceberg/nessie-warehouse/ , iceberg/warehouse/ , people.csv
 
-```bash
-# 4. Estado derivado local (todo esto se regenera corriendo los labs)
+# 4. Estado derivado local
 rm -rf spark-warehouse iceberg_catalog.db .dagster
 rm -f data/bronze/people_downloaded.csv data/silver/people_with_embeddings.json
-```
 
-```bash
 # 5. Volver a levantar y re-sembrar los secretos
 docker compose up -d
 docker exec vault vault kv put secret/minio access_key=admin secret_key=password
 docker exec vault vault kv put secret/nessie user=admin password=admin
 ```
 
-El PASO 5 hace falta porque Vault corre en **modo dev**: guarda todo en memoria y un
-`docker compose down` se lleva los secretos puestos. Si ya hiciste el Lab 7, en vez de
-los `kv put` podés correr `terraform apply` — que es exactamente el punto de ese lab.
+El paso 5 hace falta porque Vault corre en **modo dev**: guarda todo en memoria y el
+`down` del paso 1 se lleva los secretos puestos. Si ya hiciste el Lab 7, en vez de los
+`kv put` podés correr `terraform apply` — que es exactamente el punto de ese lab.
 
-**Validar que quedó limpio**
+**Validar a mano**
 
 ```bash
 curl -s http://localhost:19120/api/v1/trees | python3 -m json.tool | grep '"name"'
@@ -339,7 +340,7 @@ Nessie no se borró: revisá que hayas corrido `down -v` con el `-v`.
       pisaste sin querer: `git checkout -- data/bronze/people.csv`.
     - **`~/.ivy2/`** — los ~300 MB de jars de Spark. Borrarlo solo agrega 3 minutos
       a tu próxima corrida.
-    - **Los modelos de Ollama** — son 5 GB, no los bajes de nuevo.
+    - **Los modelos de Ollama** — son ~5 GB, no los bajes de nuevo.
 
 ---
 

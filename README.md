@@ -148,6 +148,7 @@ src/
   vault/               # Lectura de secretos
   minio/, duckdb/      # Storage y capa de lectura analítica
 infra/terraform/       # Infra como código
+scripts/               # reset-environment.sh — volver el entorno a cero
 lakehouse_dagster/     # Proyecto Dagster (assets, jobs, schedules)
 data/                  # bronze/silver/gold de ejemplo
 docker-compose.*.yml   # Un compose por servicio (MinIO, Nessie, Vault)
